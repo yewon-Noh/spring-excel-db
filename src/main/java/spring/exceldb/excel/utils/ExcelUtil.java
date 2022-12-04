@@ -3,20 +3,25 @@ package spring.exceldb.excel.utils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
+import spring.exceldb.exhibition.model.ExhibitionDTO;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -122,5 +127,127 @@ public class ExcelUtil {
         }
 
         return excelList;
+    }
+
+    /**
+     * 디비 내용으로 엑셀 파일 생성
+     * @param list
+     * @return
+     */
+    public XSSFWorkbook newExcelExhibition(List<ExhibitionDTO> list) throws IOException {
+        XSSFWorkbook  workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("전시회");
+
+        // 시트 열 너비 설정
+        sheet.autoSizeColumn(0);
+        sheet.autoSizeColumn(1);
+        sheet.autoSizeColumn(2);
+        sheet.autoSizeColumn(3);
+        sheet.autoSizeColumn(4);
+        sheet.autoSizeColumn(5);
+        sheet.autoSizeColumn(6);
+
+        // 헤더 생성
+        Cell headerCell = null;
+        Row headerRow = sheet.createRow(0);
+        for (int i = 0; i < headers.length; i++) {
+            headerCell = headerRow.createCell(i);
+            headerCell.setCellValue(headers[i]);
+        }
+
+        // 행 생성
+        Row bodyRow = null;
+        Cell bodyCell = null;
+        for (int i = 0; i < list.size(); i++) {
+            ExhibitionDTO dto = list.get(i);
+
+            bodyRow = sheet.createRow(i + 1);
+
+            bodyCell = bodyRow.createCell(0);
+            bodyCell.setCellValue(dto.getName());
+            bodyCell = bodyRow.createCell(1);
+            bodyCell.setCellValue(dto.getLocation());
+            bodyCell = bodyRow.createCell(2);
+            bodyCell.setCellValue(dto.getCategory());
+            bodyCell = bodyRow.createCell(3);
+            bodyCell.setCellValue(dto.getStart());
+            bodyCell = bodyRow.createCell(4);
+            bodyCell.setCellValue(dto.getEnd());
+            bodyCell = bodyRow.createCell(5);
+            bodyCell.setCellValue(dto.getExhibits());
+            bodyCell = bodyRow.createCell(6);
+            bodyCell.setCellValue(dto.getContent());
+        }
+        return workbook;
+    }
+
+    /**
+     * 파일 이름 생성
+     * @param request
+     * @return
+     * @throws UnsupportedEncodingException
+     */
+    public String newExcelFileName(HttpServletRequest request, String name) throws UnsupportedEncodingException {
+        Date date = new Date();
+        String datetime = new SimpleDateFormat("yyyyMMddhhmmss").format(date);
+        String fileName = name + "_" + datetime;
+
+        // 브라우저에 따른 파일이름 인코딩작업
+        String browser = request.getHeader("User-Agent");
+        if (browser.indexOf("MSIE") > -1) {
+            fileName = URLEncoder.encode(fileName, "UTF-8").replaceAll("\\+", "%20");
+        } else if (browser.indexOf("Trident") > -1) {       // IE11
+            fileName = URLEncoder.encode(fileName, "UTF-8").replaceAll("\\+", "%20");
+        } else if (browser.indexOf("Firefox") > -1) {
+            fileName = "\"" + new String(fileName.getBytes("UTF-8"), "8859_1") + "\"";
+        } else if (browser.indexOf("Opera") > -1) {
+            fileName = "\"" + new String(fileName.getBytes("UTF-8"), "8859_1") + "\"";
+        } else if (browser.indexOf("Chrome") > -1) {
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < fileName.length(); i++) {
+                char c = fileName.charAt(i);
+                if (c > '~') {
+                    sb.append(URLEncoder.encode("" + c, "UTF-8"));
+                } else {
+                    sb.append(c);
+                }
+            }
+            fileName = sb.toString();
+        } else if (browser.indexOf("Safari") > -1){
+            fileName = "\"" + new String(fileName.getBytes("UTF-8"), "8859_1")+ "\"";
+        } else {
+            fileName = "\"" + new String(fileName.getBytes("UTF-8"), "8859_1")+ "\"";
+        }
+
+        return fileName;
+    }
+
+    /**
+     * 엑셀 파일 다운로드
+     * @param request
+     * @param response
+     * @param list
+     * @throws IOException
+     */
+    public void downloadExcel(HttpServletRequest request, HttpServletResponse response, List<ExhibitionDTO> list) {
+        try {
+            // 엑셀 파일 생성
+            XSSFWorkbook workbook = newExcelExhibition(list);
+
+            // Header, ContentType 설정
+            response.setHeader("Set-Cookie", "fileDownload=true; path=/");
+            response.setHeader("Content-Disposition",
+                    String.format("attachment; filename=\"%s\"", newExcelFileName(request, "전시회") + ".xlsx", "UTF-8"));
+            response.setContentType("application/vnd.ms-excel");
+
+            workbook.write(response.getOutputStream());
+            response.getOutputStream().close();
+            ((XSSFWorkbook) workbook).close();
+
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

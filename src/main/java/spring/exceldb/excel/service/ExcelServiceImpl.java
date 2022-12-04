@@ -12,6 +12,9 @@ import spring.exceldb.exhibition.model.Exhibition;
 import spring.exceldb.exhibition.model.ExhibitionDTO;
 import spring.exceldb.exhibition.repository.ExhibitionRepository;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,5 +100,20 @@ public class ExcelServiceImpl implements ExcelService {
                 .message(Message.UPLOAD_EXCEL.label())
                 .data(exhibitionDTOList)
                 .build();
+    }
+
+    /**
+     * 디비 내용을 엑셀 파일로 다운로드
+     * @param request
+     * @param response
+     * @throws IOException
+     */
+    @Override
+    public void downloadExcel(HttpServletRequest request, HttpServletResponse response){
+        List<ExhibitionDTO> list = new ArrayList<>();
+        for (Exhibition exhibition : repository.findAll()) {
+            list.add(exhibition.setExcelDTO());
+        }
+        excelUtil.downloadExcel(request, response, list);
     }
 }
