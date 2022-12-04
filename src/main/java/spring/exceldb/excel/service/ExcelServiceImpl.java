@@ -51,7 +51,7 @@ public class ExcelServiceImpl implements ExcelService {
         // 확장자가 xlsx 또는 xls 인지 확인
         String extension = FilenameUtils.getExtension(file.getOriginalFilename());
         System.out.println("extension = " + extension);
-        if (!(extension.toLowerCase().equals("xlsx") || extension.toLowerCase().equals("xls"))) {
+        if (!(extension.toLowerCase().equals("xlsx"))) {
             return ApiResponse.builder()
                     .code(HttpStatus.BAD_REQUEST.value())
                     .httpStatus(HttpStatus.BAD_REQUEST)
